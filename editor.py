@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
 
-import pgzrun
+import pygame
 from automata import mapping_from_rule, elementary_cellular_automata
+import math
 
-WIDTH = 1000
-HEIGHT = 500
-
-class Constants:
-    CELLS_WIDTH = 2
-    CELLS_HEIGHT = 2
-    NUM_CELLS_X = int(WIDTH / CELLS_WIDTH)
-    NUM_CELLS_Y = int(HEIGHT / CELLS_HEIGHT)
+pygame.init()
 
 
 class Color:
@@ -19,12 +13,98 @@ class Color:
     WHITE = (255, 255, 255)
 
 
+class Cell:
+    def __init__(self):
+        self.pos = (0, 0)
+        self.active = False
+        self.rect = pygame.Rect((0, 0), (0, 0))
+
+    def __repr__(self):
+        return f"{type(self).__name__}({vars(self)})"
+
+
 class Game:
     trigger_full_redraw = True
     up_counter = 0
     down_counter = 0
     up_pressed = False
     down_pressed = False
+    running = True
+    font = pygame.font.Font(None, 24)
+    clock = pygame.time.Clock()
+    flags = pygame.FULLSCREEN | pygame.NOFRAME
+    screen = pygame.display.set_mode((0, 0), flags, vsync=1)
+    WIDTH = screen.get_size()[0]
+    HEIGHT = screen.get_size()[1]
+    CELLS_WIDTH = 8
+    CELLS_HEIGHT = 8
+    NUM_CELLS_X = WIDTH // CELLS_WIDTH
+    NUM_CELLS_Y = HEIGHT // CELLS_HEIGHT
+    cells = [Cell() for _ in range(NUM_CELLS_X * NUM_CELLS_Y)]
+
+    @classmethod
+    def init(cls):
+        """ Run once during start of the game
+        """
+        cls.trigger_full_redraw = True
+        cls.up_counter = 0
+        cls.down_counter = 0
+        cls.up_pressed = False
+        cls.down_pressed = False
+        cls.running = True
+        cls.clock = pygame.time.Clock()
+        cls.flags = pygame.FULLSCREEN | pygame.NOFRAME
+        cls.screen = pygame.display.set_mode((0, 0), cls.flags, vsync=1)
+        cls.font = pygame.font.Font(None, 24)
+        cls.WIDTH = cls.screen.get_size()[0]
+        cls.HEIGHT = cls.screen.get_size()[1]
+        cls.CELLS_WIDTH = 8
+        cls.CELLS_HEIGHT = 8
+        cls.init_cells()
+
+    @classmethod
+    def init_cells(cls):
+        """ Run once every time the game changes settings
+        """
+        cls.NUM_CELLS_X = cls.WIDTH // cls.CELLS_WIDTH
+        cls.NUM_CELLS_Y = cls.HEIGHT // cls.CELLS_HEIGHT
+        cls.cells = [Cell() for _ in range(cls.NUM_CELLS_X * cls.NUM_CELLS_Y)]
+
+        for index, cell in enumerate(cls.cells):
+            cell.pos = (index % cls.NUM_CELLS_X, index // cls.NUM_CELLS_X)
+            left = cell.pos[0] * cls.CELLS_WIDTH
+            top = cell.pos[1] * cls.CELLS_HEIGHT
+            cell.rect.topleft = (left, top)
+            cell.rect.size = (cls.CELLS_WIDTH, cls.CELLS_HEIGHT)
+            cell.active = False
+        pass
+
+    @classmethod
+    def automate(cls):
+        for cell in cls.cells:
+            if cell.pos[1] == 0:
+                # Set up the first "seed" row
+                if cell.pos[0] == Game.NUM_CELLS_X // 2:
+                    cell.active = True
+                else:
+                    cell.active = False
+            else:
+                prev_cells = [False, False, False]
+                try:
+                    prev_cells[0] = xy(cell.pos[0] - 1, cell.pos[1] - 1).active
+                except Exception:
+                    pass
+                try:
+                    prev_cells[1] = xy(cell.pos[0] + 0, cell.pos[1] - 1).active
+                except Exception:
+                    pass
+                try:
+                    prev_cells[2] = xy(cell.pos[0] + 1, cell.pos[1] - 1).active
+                except Exception:
+                    pass
+
+                cell.active = elementary_cellular_automata(prev_cells, Game.get_rule_mapping())
+
 
     @classmethod
     def set_rule(cls, rule):
@@ -40,65 +120,55 @@ class Game:
         return cls._rule_mapping
 
 
-class Cell:
-    def __init__(self):
-        self.pos = (0, 0)
-        self.active = False
-        self.rect = Rect((0, 0), (0, 0))
-
-    def __repr__(self):
-        return f"{type(self).__name__}({vars(self)})"
-
-
 def xy(x, y):
-    if x < 0 or y < 0 or x >= Constants.NUM_CELLS_X or y >= Constants.NUM_CELLS_Y:
+    if x < 0 or y < 0 or x >= Game.NUM_CELLS_X or y >= Game.NUM_CELLS_Y:
         raise Exception()
-    global cells
-    cell = cells[x + y * Constants.NUM_CELLS_X]
+    cell = Game.cells[x + y * Game.NUM_CELLS_X]
     return cell
-
-
-def init(cells):
-    for index, cell in enumerate(cells):
-        cell.pos = (index % Constants.NUM_CELLS_X, index // Constants.NUM_CELLS_X)
-        left = cell.pos[0] * Constants.CELLS_WIDTH
-        top = cell.pos[1] * Constants.CELLS_HEIGHT
-        cell.rect.topleft = (left, top)
-        cell.rect.size = (Constants.CELLS_WIDTH, Constants.CELLS_HEIGHT)
-        cell.active = False
 
 
 def draw():
     if Game.trigger_full_redraw:
         Game.trigger_full_redraw = False
-        global cells
-        screen.clear()
-        screen.fill(Color.BLACK)
-        for cell in cells:
+        Game.screen.fill(Color.BLACK)
+        for cell in Game.cells:
             if cell.active:
-                screen.draw.filled_rect(cell.rect, Color.WHITE)
+                pygame.draw.rect(Game.screen, Color.WHITE, cell.rect)
 
-    screen.draw.filled_rect(Rect((0, 0), (80, 20)), Color.BLACK)
-    screen.draw.text(f"rule: {Game.get_rule()}", topleft=(0, 0))
+    pygame.draw.rect(Game.screen, Color.BLACK, pygame.Rect((0, 0), (140, 20*4)))
+    Game.screen.blit(Game.font.render(f"res: {Game.screen.get_size()}", True, Color.WHITE), (0, 0))
+    Game.screen.blit(Game.font.render(f"side: {Game.CELLS_HEIGHT}", True, Color.WHITE), (0, 20))
+    Game.screen.blit(Game.font.render(f"rule: {Game.get_rule()}", True, Color.WHITE), (0, 40))
+    Game.screen.blit(Game.font.render(f"fps: {Game.clock.get_fps():.2f}", True, Color.WHITE), (0, 60))
 
 
-def on_key_down(key):
-    if key == keys.UP:
+def on_key_down(event):
+    if event.key == pygame.K_UP:
         Game.set_rule((Game.get_rule() + 1) % 255)
         Game.up_pressed = True
-    elif key == keys.DOWN:
+    elif event.key == pygame.K_DOWN:
         Game.set_rule((Game.get_rule() - 1) % 255)
         Game.down_pressed = True
+    elif event.key == pygame.K_LEFT:
+        Game.CELLS_WIDTH = min(max(1, math.floor(Game.CELLS_WIDTH * 0.8888889)), 250)
+        Game.CELLS_HEIGHT = min(max(1, math.floor(Game.CELLS_HEIGHT * 0.8888889)), 250)
+        Game.init_cells()
+    elif event.key == pygame.K_RIGHT:
+        Game.CELLS_WIDTH = min(max(1, math.ceil(Game.CELLS_WIDTH * 1.125)), 250)
+        Game.CELLS_HEIGHT = min(max(1, math.ceil(Game.CELLS_HEIGHT * 1.125)), 250)
+        Game.init_cells()
+    elif event.key == pygame.K_q and (event.mod == pygame.KMOD_LCTRL or event.mod == pygame.KMOD_RCTRL):
+        Game.running = False
 
 
-def on_key_up(key):
-    if key == keys.UP:
+def on_key_up(event):
+    if event.key == pygame.K_UP:
         Game.up_pressed = False
-    elif key == keys.DOWN:
+    elif event.key == pygame.K_DOWN:
         Game.down_pressed = False
 
     if not Game.up_pressed and not Game.down_pressed:
-        automate(cells)
+        Game.automate()
         Game.trigger_full_redraw = True
 
 
@@ -119,35 +189,26 @@ def update():
         Game.set_rule((Game.get_rule() - 1) % 255)
 
 
-def automate(cells):
-    for cell in cells:
-        if cell.pos[1] == 0:
-            # Set up the first "seed" row
-            if cell.pos[0] == Constants.NUM_CELLS_X // 2:
-                cell.active = True
-            else:
-                cell.active = False
-        else:
-            prev_cells = [False, False, False]
-            try:
-                prev_cells[0] = xy(cell.pos[0] - 1, cell.pos[1] - 1).active
-            except Exception:
-                pass
-            try:
-                prev_cells[1] = xy(cell.pos[0] + 0, cell.pos[1] - 1).active
-            except Exception:
-                pass
-            try:
-                prev_cells[2] = xy(cell.pos[0] + 1, cell.pos[1] - 1).active
-            except Exception:
-                pass
-
-            cell.active = elementary_cellular_automata(prev_cells, Game.get_rule_mapping())
-
-
-global cells
-cells = [Cell() for _ in range(Constants.NUM_CELLS_X * Constants.NUM_CELLS_Y)]
-init(cells)
+Game.init()
 Game.set_rule(110)
-automate(cells)
-pgzrun.go()
+Game.automate()
+
+while Game.running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            Game.running = False
+        elif event.type == pygame.KEYDOWN:
+            on_key_down(event)
+        elif event.type == pygame.KEYUP:
+            on_key_up(event)
+        elif event.type == pygame.ACTIVEEVENT:
+            if event.state == "SDL_APPACTIVE" and event.gain == 1:
+                Game.trigger_full_redraw = True
+
+    update()
+    draw()
+    pygame.display.flip()
+
+    Game.clock.tick(60)  # limits FPS to 60
+
+pygame.quit()
