@@ -3,6 +3,8 @@
 my_dir="$(dirname "$(realpath "$0")")"
 cw_dir="$(pwd)"
 
+echo "Running on deck!"
+
 pactl load-module module-native-protocol-unix socket="/tmp/pulseaudio.socket" &>/dev/null
 
 cat >> /tmp/pulseaudio.client.conf << 'EOF'
@@ -16,14 +18,13 @@ EOF
 
 set -x
 # shellcheck disable=SC2086
-podman run --rm -it \
+podman run --rm \
     --env DISPLAY=${DISPLAY} \
     --env HOME="${my_dir}/.docker-home" \
     --env PULSE_SERVER="unix:/tmp/pulseaudio.socket" \
     --env PULSE_COOKIE="/tmp/pulseaudio.cookie" \
     --network host \
     --userns keep-id \
-    --volume "/tmp/pulseaudio.socket":"/tmp/pulseaudio.socket" \
     --volume "/tmp/pulseaudio.client.conf":"/etc/pulse/client.conf" \
     --volume="${HOME}/.Xauthority":"/${cw_dir}/.Xauthority:rw" \
     --volume "${my_dir}":"${my_dir}" \

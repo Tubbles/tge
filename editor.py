@@ -3,6 +3,8 @@
 import pygame
 from automata import mapping_from_rule, elementary_cellular_automata
 import math
+import sys
+
 
 pygame.init()
 
@@ -159,6 +161,8 @@ def on_key_down(event):
         Game.init_cells()
     elif event.key == pygame.K_q and (event.mod == pygame.KMOD_LCTRL or event.mod == pygame.KMOD_RCTRL):
         Game.running = False
+    else:
+        print(f"Unknown key down: {event}")
 
 
 def on_key_up(event):
@@ -193,6 +197,8 @@ Game.init()
 Game.set_rule(110)
 Game.automate()
 
+joysticks = {}
+
 while Game.running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -204,11 +210,27 @@ while Game.running:
         elif event.type == pygame.ACTIVEEVENT:
             if event.state == "SDL_APPACTIVE" and event.gain == 1:
                 Game.trigger_full_redraw = True
+        # Handle hotplugging
+        elif event.type == pygame.JOYDEVICEADDED:
+            # This event will be generated when the program starts for every
+            # joystick, filling up the list without needing to create them manually.
+            joy = pygame.joystick.Joystick(event.device_index)
+            #joy.init()
+            joysticks[joy.get_instance_id()] = joy
+            print(f"Joystick {joy.get_instance_id()} connencted")
+        elif event.type == pygame.JOYDEVICEREMOVED:
+            #joysticks[event.instance_id].quit()
+            del joysticks[event.instance_id]
+            print(f"Joystick {event.instance_id} disconnected")
+        else:
+            print(f"Unknown event: {event}")
+
 
     update()
     draw()
     pygame.display.flip()
 
+    sys.stdout.flush()
     Game.clock.tick(60)  # limits FPS to 60
 
 pygame.quit()

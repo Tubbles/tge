@@ -14,4 +14,5 @@ RUN apt update && apt install -y \
 RUN pip install \
     jurigged==0.5.8 \
     numpy==2.0.1 \
-    pygame==2.6.0
+    pygame==2.6.0 \
+    pyinstaller==6.10.0
