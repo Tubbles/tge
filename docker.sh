@@ -18,6 +18,7 @@ set -x
 # shellcheck disable=SC2086
 podman run --rm -it \
     --env DISPLAY=${DISPLAY} \
+    --env HOME="${my_dir}/.docker-home" \
     --env PULSE_SERVER="unix:/tmp/pulseaudio.socket" \
     --env PULSE_COOKIE="/tmp/pulseaudio.cookie" \
     --network host \
