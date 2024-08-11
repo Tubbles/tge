@@ -1,23 +1,17 @@
 # syntax=docker/dockerfile:1
 FROM docker.io/ubuntu:22.04 AS tge-builder
 
-RUN apt update -y
-RUN apt install -y python3
-RUN apt install -y pip
+RUN apt update && apt install -y \
+    libglib2.0-0 \
+    libsdl2-mixer-2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    pip \
+    python3 \
+    && rm -fr /var/lib/apt/lists/*
 
 RUN pip install \
-    numpy==1.26.4 \
-    pgzero==1.2.1 \
-    pygame==2.5.2
-
-RUN apt install -y \
-    libglib2.0-0 \
-    libsm6 \
-    libxrender1 \
-    libxext6
-
-# RUN apt install -y \
-#     xauth
-
-RUN apt install -y \
-    libsdl2-mixer-2.0-0
+    jurigged==0.5.8 \
+    numpy==2.0.1 \
+    pygame==2.6.0
