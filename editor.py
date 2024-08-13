@@ -194,6 +194,10 @@ def on_key_up(event):
         on_input_release(event.key)
     elif event.key == pygame.K_DOWN:
         on_input_release(event.key)
+    elif event.key == pygame.K_LEFT:
+        on_input_release(event.key)
+    elif event.key == pygame.K_RIGHT:
+        on_input_release(event.key)
 
 
 def on_joy_button_down(event):
