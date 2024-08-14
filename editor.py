@@ -4,12 +4,15 @@ from os import environ
 environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "true"
 
 import pygame
-from automata import mapping_from_rule, elementary_cellular_automata
-import math
-import sys
 
 
 pygame.init()
+
+
+from automata import mapping_from_rule, elementary_cellular_automata
+from input_action import InputAction
+import math
+import sys
 
 
 class Color:
@@ -46,6 +49,8 @@ class Game:
     NUM_CELLS_X = WIDTH // CELLS_WIDTH
     NUM_CELLS_Y = HEIGHT // CELLS_HEIGHT
     joysticks = {}
+    input_actions = {}
+    event_callbacks = {}
     cells = [Cell() for _ in range(NUM_CELLS_X * NUM_CELLS_Y)]
 
     @classmethod
@@ -67,6 +72,8 @@ class Game:
         cls.CELLS_WIDTH = 8
         cls.CELLS_HEIGHT = 8
         cls.joysticks = {}
+        cls.input_actions = {}
+        cls.event_callbacks = {}
         cls.init_cells()
 
     @classmethod
@@ -187,7 +194,7 @@ def on_key_down(event):
     elif event.key == pygame.K_RIGHT:
         on_input(event.key)
     elif event.key == pygame.K_q and (event.mod == pygame.KMOD_LCTRL or event.mod == pygame.KMOD_RCTRL):
-        Game.running = False
+        Game.input_actions["quit"].trigger()
     else:
         print(f"Unknown key down: {event}")
 
@@ -218,7 +225,7 @@ def on_joy_button_down(event):
         elif event.button == 5:  # Right Bumper
             pass
         elif event.button == 6:  # Back Button
-            Game.running = False
+            Game.input_actions["quit"].trigger()
         elif event.button == 7:  # Start Button
             pass
         elif event.button == 8:  # L. Stick In
@@ -272,49 +279,65 @@ def update():
         Game.set_rule((Game.get_rule() - 1) % 255)
 
 
-Game.init()
-Game.set_rule(110)
-Game.automate()
+# def on_quit():
+#     Game.input_actions["quit"].trigger()
 
 
-while Game.running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            Game.running = False
-        elif event.type == pygame.KEYDOWN:
-            on_key_down(event)
-        elif event.type == pygame.KEYUP:
-            on_key_up(event)
-        elif event.type == pygame.ACTIVEEVENT:
-            if event.state == "SDL_APPACTIVE" and event.gain == 1:
-                Game.trigger_full_redraw = True
-        # Handle hotplugging
-        elif event.type == pygame.JOYDEVICEADDED:
-            # This event will be generated when the program starts for every
-            # joystick, filling up the list without needing to create them manually.
-            joy = pygame.joystick.Joystick(event.device_index)
-            Game.joysticks[joy.get_instance_id()] = joy
-            print(f"Joystick {joy.get_instance_id()} connected: {joy.get_name()}")
-        elif event.type == pygame.JOYDEVICEREMOVED:
-            del Game.joysticks[event.instance_id]
-            print(f"Joystick {event.instance_id} disconnected")
-        elif event.type == pygame.JOYAXISMOTION:
-            pass
-        elif event.type == pygame.JOYBUTTONDOWN:
-            on_joy_button_down(event)
-        elif event.type == pygame.JOYBUTTONUP:
-            on_joy_button_up(event)
-        else:
-            print(f"Unknown event: {event}")
+def quit():
+    Game.running = False
 
 
-    update()
-    draw()
-    pygame.display.flip()
+if __name__ == "__main__":
+    Game.init()
+    Game.set_rule(110)
+    Game.automate()
 
-    sys.stdout.flush()
-    Game.clock.tick(60)  # limits FPS to 60
+    Game.input_actions = {
+        "quit": InputAction(quit)
+    }
 
-# pygame.display.quit()
-pygame.quit()
-sys.exit()
+    Game.event_callbacks[pygame.QUIT] = []
+    Game.event_callbacks[pygame.QUIT].append(lambda: Game.input_actions["quit"].trigger())
+    Game.event_callbacks[pygame.KEYDOWN] = []
+    Game.event_callbacks[pygame.KEYDOWN].append(on_key_down)
+    Game.event_callbacks[pygame.KEYUP] = []
+    Game.event_callbacks[pygame.KEYUP].append(on_key_up)
+    Game.event_callbacks[pygame.JOYBUTTONDOWN] = []
+    Game.event_callbacks[pygame.JOYBUTTONDOWN].append(on_joy_button_down)
+    Game.event_callbacks[pygame.JOYBUTTONUP] = []
+    Game.event_callbacks[pygame.JOYBUTTONUP].append(on_joy_button_up)
+
+    while Game.running:
+        for event in pygame.event.get():
+            if event.type in Game.event_callbacks:
+                for cb in Game.event_callbacks[event.type]:
+                    cb(event)
+
+            elif event.type == pygame.ACTIVEEVENT:
+                if event.state == "SDL_APPACTIVE" and event.gain == 1:
+                    Game.trigger_full_redraw = True
+            # Handle hotplugging
+            elif event.type == pygame.JOYDEVICEADDED:
+                # This event will be generated when the program starts for every
+                # joystick, filling up the list without needing to create them manually.
+                joy = pygame.joystick.Joystick(event.device_index)
+                Game.joysticks[joy.get_instance_id()] = joy
+                print(f"Joystick {joy.get_instance_id()} connected: {joy.get_name()}")
+            elif event.type == pygame.JOYDEVICEREMOVED:
+                del Game.joysticks[event.instance_id]
+                print(f"Joystick {event.instance_id} disconnected")
+            elif event.type == pygame.JOYAXISMOTION:
+                pass
+            else:
+                print(f"Unknown event: {event}")
+
+        update()
+        draw()
+        pygame.display.flip()
+
+        sys.stdout.flush()
+        Game.clock.tick(60)  # limits FPS to 60
+
+    # pygame.display.quit()
+    pygame.quit()
+    sys.exit()
