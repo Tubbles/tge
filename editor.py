@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+from os import environ
+environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "true"
+
 import pygame
 from automata import mapping_from_rule, elementary_cellular_automata
 import math
