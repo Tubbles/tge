@@ -3,8 +3,6 @@
 my_dir="$(dirname "$(realpath "$0")")"
 cw_dir="$(pwd)"
 
-echo "Running on deck!"
-
 pactl load-module module-native-protocol-unix socket="/tmp/pulseaudio.socket" &>/dev/null
 
 cat >> /tmp/pulseaudio.client.conf << 'EOF'
@@ -23,6 +21,7 @@ podman run --rm \
     --env HOME="${my_dir}/.docker-home" \
     --env PULSE_SERVER="unix:/tmp/pulseaudio.socket" \
     --env PULSE_COOKIE="/tmp/pulseaudio.cookie" \
+    --env PYGAME_HIDE_SUPPORT_PROMPT="true" \
     --network host \
     --userns keep-id \
     --volume "/tmp/pulseaudio.client.conf":"/etc/pulse/client.conf" \

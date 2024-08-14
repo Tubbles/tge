@@ -3,4 +3,5 @@ __pycache__/
 .docker-home
 build
 dist
-editor.spec
+*.spec
+log
