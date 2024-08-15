@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 
-
 class InputAction:
     """
-    This class models all types of actions that can be triggered using human input devices, such as keyboard and
-    controllers
+    This class models all types of actions that can be triggered using human input devices, (eg. keyboard and
+    controllers). For example "jump" and "shoot"
     """
 
-    def __init__(self, callback=None):
-        self._callback = callback  # Callback for the triggered event
+    def __init__(self):
+        self._callbacks = {}
 
-    def trigger(self):
-        if self._callback:
-            self._callback()
+    def register(self, action_name, callback):
+        if not action_name in self._callbacks:
+            self._callbacks[action_name] = []
+        self._callbacks[action_name].append(callback)
+
+    def trigger(self, action_name):
+        if action_name in self._callbacks:
+            for callback in self._callbacks["action_name"]:
+                callback()
 
 
 if __name__ == "__main__":
