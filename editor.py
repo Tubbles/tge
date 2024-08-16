@@ -9,287 +9,46 @@ import pygame
 pygame.init()
 
 
-from automata import mapping_from_rule, elementary_cellular_automata
-from event_callback import EventCallback
-from input_action import InputAction
-from joypad import Joypad
-import math
+from game import Game
 import sys
 
 
-class Color:
-    BLACK = (0, 0, 0)
-    DARK_RED = (128, 0, 0)
-    WHITE = (255, 255, 255)
-
-
-class Cell:
-    def __init__(self):
-        self.pos = (0, 0)
-        self.active = False
-        self.rect = pygame.Rect((0, 0), (0, 0))
-
-    def __repr__(self):
-        return f"{type(self).__name__}({vars(self)})"
-
-
-class Game:
-    trigger_full_redraw = True
-    up_counter = 0
-    down_counter = 0
-    up_pressed = False
-    down_pressed = False
-    running = True
-    font = pygame.font.Font(None, 24)
-    clock = pygame.time.Clock()
-    flags = pygame.FULLSCREEN | pygame.NOFRAME
-    screen = pygame.display.set_mode((0, 0), flags, vsync=1)
-    WIDTH = screen.get_size()[0]
-    HEIGHT = screen.get_size()[1]
-    CELLS_WIDTH = 8
-    CELLS_HEIGHT = 8
-    NUM_CELLS_X = WIDTH // CELLS_WIDTH
-    NUM_CELLS_Y = HEIGHT // CELLS_HEIGHT
-    joysticks = {}
-    input_action = InputAction()
-    _event_callbacks = {}
-    cells = [Cell() for _ in range(NUM_CELLS_X * NUM_CELLS_Y)]
-
-    @classmethod
-    def init(cls):
-        """ Run once during start of the game
-        """
-        cls.trigger_full_redraw = True
-        cls.up_counter = 0
-        cls.down_counter = 0
-        cls.up_pressed = False
-        cls.down_pressed = False
-        cls.running = True
-        cls.clock = pygame.time.Clock()
-        cls.flags = pygame.FULLSCREEN | pygame.NOFRAME
-        cls.screen = pygame.display.set_mode((0, 0), cls.flags, vsync=1)
-        cls.font = pygame.font.Font(None, 24)
-        cls.WIDTH = cls.screen.get_size()[0]
-        cls.HEIGHT = cls.screen.get_size()[1]
-        cls.CELLS_WIDTH = 8
-        cls.CELLS_HEIGHT = 8
-        cls.joysticks = {}
-        cls.input_action = InputAction()
-        cls._event_callbacks = {}
-        cls.init_cells()
-
-    @classmethod
-    def init_cells(cls):
-        """ Run once every time the game changes settings
-        """
-        cls.NUM_CELLS_X = cls.WIDTH // cls.CELLS_WIDTH
-        cls.NUM_CELLS_Y = cls.HEIGHT // cls.CELLS_HEIGHT
-        cls.cells = [Cell() for _ in range(cls.NUM_CELLS_X * cls.NUM_CELLS_Y)]
-
-        for index, cell in enumerate(cls.cells):
-            cell.pos = (index % cls.NUM_CELLS_X, index // cls.NUM_CELLS_X)
-            left = cell.pos[0] * cls.CELLS_WIDTH
-            top = cell.pos[1] * cls.CELLS_HEIGHT
-            cell.rect.topleft = (left, top)
-            cell.rect.size = (cls.CELLS_WIDTH, cls.CELLS_HEIGHT)
-            cell.active = False
-        pass
-
-    @classmethod
-    def register_event_callback(cls, event_type, callback):
-        if not event_type in cls._event_callbacks:
-            cls._event_callbacks[event_type] = []
-        cls._event_callbacks[event_type].append(callback)
-
-    @classmethod
-    def trigger_event_callbacks(cls, event):
-        if event.type in cls._event_callbacks:
-            for cb in cls._event_callbacks[event.type]:
-                cb(event)
-            return True
-        return False
-
-    @classmethod
-    def automate(cls):
-        for cell in cls.cells:
-            if cell.pos[1] == 0:
-                # Set up the first "seed" row
-                if cell.pos[0] == cls.NUM_CELLS_X // 2:
-                    cell.active = True
-                else:
-                    cell.active = False
-            else:
-                prev_cells = [False, False, False]
-                try:
-                    prev_cells[0] = xy(cell.pos[0] - 1, cell.pos[1] - 1).active
-                except Exception:
-                    pass
-                try:
-                    prev_cells[1] = xy(cell.pos[0] + 0, cell.pos[1] - 1).active
-                except Exception:
-                    pass
-                try:
-                    prev_cells[2] = xy(cell.pos[0] + 1, cell.pos[1] - 1).active
-                except Exception:
-                    pass
-
-                cell.active = elementary_cellular_automata(prev_cells, Game.get_rule_mapping())
-
-
-    @classmethod
-    def set_rule(cls, rule):
-        cls._rule = rule
-        cls._rule_mapping = mapping_from_rule(rule)
-
-    @classmethod
-    def get_rule(cls):
-        return cls._rule
-
-    @classmethod
-    def get_rule_mapping(cls):
-        return cls._rule_mapping
-
-
-def xy(x, y):
-    if x < 0 or y < 0 or x >= Game.NUM_CELLS_X or y >= Game.NUM_CELLS_Y:
-        raise Exception()
-    cell = Game.cells[x + y * Game.NUM_CELLS_X]
-    return cell
-
-
-def draw():
-    if Game.trigger_full_redraw:
-        Game.trigger_full_redraw = False
-        Game.screen.fill(Color.BLACK)
-        for cell in Game.cells:
-            if cell.active:
-                pygame.draw.rect(Game.screen, Color.WHITE, cell.rect)
-
-    pygame.draw.rect(Game.screen, Color.BLACK, pygame.Rect((0, 0), (140, 20*4)))
-    Game.screen.blit(Game.font.render(f"res: {Game.screen.get_size()}", True, Color.WHITE), (0, 0))
-    Game.screen.blit(Game.font.render(f"side: {Game.CELLS_HEIGHT}", True, Color.WHITE), (0, 20))
-    Game.screen.blit(Game.font.render(f"rule: {Game.get_rule()}", True, Color.WHITE), (0, 40))
-    Game.screen.blit(Game.font.render(f"fps: {Game.clock.get_fps():.2f}", True, Color.WHITE), (0, 60))
-
-
-def on_input(input):
-    if input == pygame.K_UP:
-        Game.set_rule((Game.get_rule() + 1) % 255)
-        Game.up_pressed = True
-    elif input == pygame.K_DOWN:
-        Game.set_rule((Game.get_rule() - 1) % 255)
-        Game.down_pressed = True
-    elif input == pygame.K_LEFT:
-        Game.CELLS_WIDTH = min(max(1, math.floor(Game.CELLS_WIDTH * 0.8888889)), 250)
-        Game.CELLS_HEIGHT = min(max(1, math.floor(Game.CELLS_HEIGHT * 0.8888889)), 250)
-        Game.init_cells()
-    elif input == pygame.K_RIGHT:
-        Game.CELLS_WIDTH = min(max(1, math.ceil(Game.CELLS_WIDTH * 1.125)), 250)
-        Game.CELLS_HEIGHT = min(max(1, math.ceil(Game.CELLS_HEIGHT * 1.125)), 250)
-        Game.init_cells()
-
-
-def on_input_release(input):
-    if input == pygame.K_UP:
-        Game.up_pressed = False
-    elif input == pygame.K_DOWN:
-        Game.down_pressed = False
-
-    if not Game.up_pressed and not Game.down_pressed:
-        Game.automate()
-        Game.trigger_full_redraw = True
-
-
-def update():
-    if Game.up_pressed:
-        Game.up_counter += 1
-    else:
-        Game.up_counter = 0
-
-    if Game.down_pressed:
-        Game.down_counter += 1
-    else:
-        Game.down_counter = 0
-
-    if Game.up_counter >= 10:
-        Game.set_rule((Game.get_rule() + 1) % 255)
-    if Game.down_counter >= 10:
-        Game.set_rule((Game.get_rule() - 1) % 255)
-
-
-def quit():
-    Game.running = False
-
-
-def on_gain_focus(event):
-    global Game
-    if event.state == "SDL_APPACTIVE" and event.gain == 1:
-        Game.trigger_full_redraw = True
-
-
-def on_key_down(event):
-    if event.key == pygame.K_UP:
-        on_input(event.key)
-    elif event.key == pygame.K_DOWN:
-        on_input(event.key)
-    elif event.key == pygame.K_LEFT:
-        on_input(event.key)
-    elif event.key == pygame.K_RIGHT:
-        on_input(event.key)
-    elif event.key == pygame.K_q and (event.mod == pygame.KMOD_LCTRL or event.mod == pygame.KMOD_RCTRL):
-        Game.input_action.trigger("quit")
-    else:
-        print(f"Unknown key down: {event}")
-
-
-def on_key_up(event):
-    if event.key == pygame.K_UP:
-        on_input_release(event.key)
-    elif event.key == pygame.K_DOWN:
-        on_input_release(event.key)
-    elif event.key == pygame.K_LEFT:
-        on_input_release(event.key)
-    elif event.key == pygame.K_RIGHT:
-        on_input_release(event.key)
-
-
 if __name__ == "__main__":
-    Game.init()
-    Game.set_rule(110)
-    Game.automate()
+    game = Game()
+    game.set_rule(110)
+    game.automate()
 
-    Game.input_action.register("quit", quit)
-    Game.input_action.register("next_rule_hold", quit)
-    Game.input_action.register("next_rule_release", quit)
-    Game.input_action.register("prev_rule_hold", quit)
-    Game.input_action.register("prev_rule_release", quit)
-    Game.input_action.register("inc_size_hold", quit)
-    Game.input_action.register("inc_size_release", quit)
-    Game.input_action.register("dec_size_hold", quit)
-    Game.input_action.register("dec_size_release", quit)
+    game.input_action.register_on_hold("quit", game.quit)
+    game.input_action.register_on_hold("next_rule", game.next_rule_hold)
+    game.input_action.register_on_release("next_rule", game.next_rule_release)
+    game.input_action.register_on_hold("prev_rule", game.prev_rule_hold)
+    game.input_action.register_on_release("prev_rule", game.prev_rule_release)
+    game.input_action.register_on_hold("inc_size", game.inc_size_hold)
+    game.input_action.register_on_release("inc_size", game.inc_size_release)
+    game.input_action.register_on_hold("dec_size", game.dec_size_hold)
+    game.input_action.register_on_release("dec_size", game.dec_size_release)
 
-    Game.register_event_callback(pygame.QUIT, lambda: Game.input_action.trigger("quit"))
-    Game.register_event_callback(pygame.ACTIVEEVENT, on_gain_focus)
-    Game.register_event_callback(pygame.KEYDOWN, on_key_down)
-    Game.register_event_callback(pygame.KEYUP, on_key_up)
-    Game.register_event_callback(pygame.JOYDEVICEADDED, Joypad.on_joydevice_added)
-    Game.register_event_callback(pygame.JOYDEVICEREMOVED, Joypad.on_joydevice_removed)
-    Game.register_event_callback(pygame.JOYBUTTONDOWN, Joypad.on_joy_button_down)
-    Game.register_event_callback(pygame.JOYBUTTONUP, Joypad.on_joy_button_up)
-    Game.register_event_callback(pygame.JOYAXISMOTION, Joypad.on_joy_axis_motion)
+    game.event.register_callback(pygame.QUIT, lambda: game.input_action.trigger("quit"))
+    game.event.register_callback(pygame.ACTIVEEVENT, game.on_gain_focus)
+    game.event.register_callback(pygame.KEYDOWN, game.keyboard.on_key_down)
+    game.event.register_callback(pygame.KEYUP, game.keyboard.on_key_up)
+    game.event.register_callback(pygame.JOYDEVICEADDED, game.joypad.on_joydevice_added)
+    game.event.register_callback(pygame.JOYDEVICEREMOVED, game.joypad.on_joydevice_removed)
+    game.event.register_callback(pygame.JOYBUTTONDOWN, game.joypad.on_joy_button_down)
+    game.event.register_callback(pygame.JOYBUTTONUP, game.joypad.on_joy_button_up)
+    game.event.register_callback(pygame.JOYAXISMOTION, game.joypad.on_joy_axis_motion)
 
-    while Game.running:
-        for event in pygame.event.get():
-            if not Game.trigger_event_callbacks(event):
-                print(f"Unknown event: {event}")
+    game.scheduler.register_on("update", game.update)
+    game.scheduler.register_on("draw", game.draw)
 
-        update()
-        draw()
+    while game.running:
+        game.event.pump()
+        game.scheduler.trigger("update")
+        game.scheduler.trigger("draw")
         pygame.display.flip()
-
         sys.stdout.flush()
-        Game.clock.tick(60)  # limits FPS to 60
+        game.clock.tick(60)  # limits FPS to 60
 
     # pygame.display.quit()
     pygame.quit()
-    sys.exit(1)
+    # sys.exit(1)

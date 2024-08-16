@@ -7,28 +7,29 @@ import pygame
 
 
 class Keyboard:
-    @classmethod
-    def on_key_down(cls, event):
+    def __init__(self, game):
+        self.game = game
+
+    def on_key_down(self, event):
         if event.key == pygame.K_UP:
-            on_input(event.key)
+            self.game.input_action.hold("next_rule")
         elif event.key == pygame.K_DOWN:
-            on_input(event.key)
+            self.game.input_action.hold("prev_rule")
         elif event.key == pygame.K_LEFT:
-            on_input(event.key)
+            self.game.input_action.hold("dec_size")
         elif event.key == pygame.K_RIGHT:
-            on_input(event.key)
+            self.game.input_action.hold("inc_size")
         elif event.key == pygame.K_q and (event.mod == pygame.KMOD_LCTRL or event.mod == pygame.KMOD_RCTRL):
-            Game.input_actions["quit"].trigger()
+            self.game.input_action.hold("quit")
         else:
             print(f"Unknown key down: {event}")
 
-    @classmethod
-    def on_key_up(cls, event):
+    def on_key_up(self, event):
         if event.key == pygame.K_UP:
-            on_input_release(event.key)
+            self.game.input_action.release("next_rule")
         elif event.key == pygame.K_DOWN:
-            on_input_release(event.key)
+            self.game.input_action.release("prev_rule")
         elif event.key == pygame.K_LEFT:
-            on_input_release(event.key)
+            self.game.input_action.release("dec_size")
         elif event.key == pygame.K_RIGHT:
-            on_input_release(event.key)
+            self.game.input_action.release("inc_size")

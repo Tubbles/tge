@@ -7,23 +7,20 @@ import pygame
 
 
 class Joypad:
-    @classmethod
-    def on_joydevice_added(event: pygame.event.Event):
-        global Game
+    def __init__(self, game):
+        self.game = game
+
+    def on_joydevice_added(self, event: pygame.event.Event):
         joy = pygame.joystick.Joystick(event.device_index)
-        Game.joysticks[joy.get_instance_id()] = joy
+        self.game.joysticks[joy.get_instance_id()] = joy
         print(f"Joystick {joy.get_instance_id()} connected: {joy.get_name()}")
 
-    @classmethod
-    def on_joydevice_removed(event: pygame.event.Event):
-        global Game
-        del Game.joysticks[event.instance_id]
+    def on_joydevice_removed(self, event: pygame.event.Event):
+        del self.game.joysticks[event.instance_id]
         print(f"Joystick {event.instance_id} disconnected")
 
-    @classmethod
-    def on_joy_button_down(event):
-        global Game
-        if "microsoft x-box 360" in Game.joysticks[event.instance_id].get_name().lower():
+    def on_joy_button_down(self, event):
+        if "microsoft x-box 360" in self.game.joysticks[event.instance_id].get_name().lower():
             if event.button == 0:  # A Button
                 on_input(pygame.K_DOWN)
             elif event.button == 1:  # B Button
@@ -37,7 +34,7 @@ class Joypad:
             elif event.button == 5:  # Right Bumper
                 pass
             elif event.button == 6:  # Back Button
-                Game.input_actions["quit"].trigger()
+                self.game.input_action.hold("quit")
             elif event.button == 7:  # Start Button
                 pass
             elif event.button == 8:  # L. Stick In
@@ -47,10 +44,8 @@ class Joypad:
             elif event.button == 10:  # Guide Button
                 pass
 
-    @classmethod
-    def on_joy_button_up(event):
-        global Game
-        if "microsoft x-box 360" in Game.joysticks[event.instance_id].get_name().lower():
+    def on_joy_button_up(self, event):
+        if "microsoft x-box 360" in self.game.joysticks[event.instance_id].get_name().lower():
             if event.button == 0:  # A Button
                 on_input_release(pygame.K_DOWN)
             elif event.button == 1:  # B Button
@@ -74,7 +69,5 @@ class Joypad:
             elif event.button == 10:  # Guide Button
                 pass
 
-    @classmethod
-    def on_joy_axis_motion(event):
-        global Game
+    def on_joy_axis_motion(self, event):
         pass
