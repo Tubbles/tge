@@ -65,9 +65,9 @@ class Game:
             cell.rect.topleft = (left, top)
             cell.rect.size = (self.CELLS_WIDTH, self.CELLS_HEIGHT)
             cell.active = False
-        pass
 
     def automate(self):
+        rule_mapping = self.get_rule_mapping()
         for cell in self.cells:
             if cell.pos[1] == 0:
                 # Set up the first "seed" row
@@ -78,19 +78,20 @@ class Game:
             else:
                 prev_cells = [False, False, False]
                 try:
-                    prev_cells[0] = xy(cell.pos[0] - 1, cell.pos[1] - 1).active
+                    prev_cells[0] = self.xy(cell.pos[0] - 1, cell.pos[1] - 1).active
                 except Exception:
                     pass
                 try:
-                    prev_cells[1] = xy(cell.pos[0] + 0, cell.pos[1] - 1).active
+                    prev_cells[1] = self.xy(cell.pos[0] + 0, cell.pos[1] - 1).active
                 except Exception:
                     pass
                 try:
-                    prev_cells[2] = xy(cell.pos[0] + 1, cell.pos[1] - 1).active
+                    prev_cells[2] = self.xy(cell.pos[0] + 1, cell.pos[1] - 1).active
                 except Exception:
                     pass
 
-                cell.active = elementary_cellular_automata(prev_cells, self.get_rule_mapping())
+                cell.active = elementary_cellular_automata(prev_cells, rule_mapping)
+                pass
 
 
     def set_rule(self, rule):
