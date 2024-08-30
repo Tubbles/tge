@@ -7,6 +7,23 @@ import math
 import sys
 
 
+def get_version():
+    version = "0.1.0"
+
+    try:
+        import git
+        try:
+            repo = git.Repo(search_parent_directories=False)
+            sha = repo.head.object.hexsha
+            version += f"-{sha[0:7]}"
+        except git.exc.InvalidGitRepositoryError:
+            pass
+    except ModuleNotFoundError:
+        pass
+
+    return version
+
+
 class Cell:
     def __init__(self):
         self.pos = (0, 0)
@@ -19,6 +36,7 @@ class Cell:
 
 class App:
     def __init__(self):
+        self.version = get_version()
         self.trigger_full_redraw = True
         self.up_counter = 0
         self.down_counter = 0
@@ -125,11 +143,12 @@ class App:
                 if cell.active:
                     pygame.draw.rect(game.screen, Color.WHITE, cell.rect)
 
-        pygame.draw.rect(game.screen, Color.BLACK, pygame.Rect((0, 0), (140, 20*4)))
-        game.screen.blit(self.font.render(f"res: {game.screen.get_size()}", True, Color.WHITE), (0, 0))
-        game.screen.blit(self.font.render(f"side: {self.CELLS_HEIGHT}", True, Color.WHITE), (0, 20))
-        game.screen.blit(self.font.render(f"rule: {self.get_rule()}", True, Color.WHITE), (0, 40))
-        game.screen.blit(self.font.render(f"fps: {game.clock.get_fps():.2f}", True, Color.WHITE), (0, 60))
+        pygame.draw.rect(game.screen, Color.BLACK, pygame.Rect((0, 0), (160, 20*5)))
+        game.screen.blit(self.font.render(f"ver: {self.version}", True, Color.WHITE), (0, 0))
+        game.screen.blit(self.font.render(f"res: {game.screen.get_size()}", True, Color.WHITE), (0, 20))
+        game.screen.blit(self.font.render(f"side: {self.CELLS_HEIGHT}", True, Color.WHITE), (0, 40))
+        game.screen.blit(self.font.render(f"rule: {self.get_rule()}", True, Color.WHITE), (0, 60))
+        game.screen.blit(self.font.render(f"fps: {game.clock.get_fps():.2f}", True, Color.WHITE), (0, 80))
 
     def update(self):
         if self.up_pressed:
