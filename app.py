@@ -1,18 +1,8 @@
 #!/usr/bin/env python3
 
-from os import environ
-environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "true"
-
-import pygame
-
+from tge import game, pygame
 from automata import mapping_from_rule, elementary_cellular_automata
 from constants import Color
-from event import Event
-from event_callback import EventCallback
-from input_action import InputAction
-from joypad import Joypad
-from keyboard import Keyboard
-from scheduler import Scheduler
 import math
 import sys
 
@@ -27,29 +17,46 @@ class Cell:
         return f"{type(self).__name__}({vars(self)})"
 
 
-class Game:
+class App:
     def __init__(self):
         self.trigger_full_redraw = True
         self.up_counter = 0
         self.down_counter = 0
         self.up_pressed = False
         self.down_pressed = False
-        self.running = True
-        self.clock = pygame.time.Clock()
-        self.flags = pygame.FULLSCREEN | pygame.NOFRAME
-        self.screen = pygame.display.set_mode((0, 0), self.flags, vsync=1)
         self.font = pygame.font.Font(None, 24)
-        self.WIDTH = self.screen.get_size()[0]
-        self.HEIGHT = self.screen.get_size()[1]
+        self.WIDTH = game.screen.get_size()[0]
+        self.HEIGHT = game.screen.get_size()[1]
         self.CELLS_WIDTH = 8
         self.CELLS_HEIGHT = 8
         self.joysticks = {}
-        self.joypad = Joypad(self)
-        self.input_action = InputAction()
-        self.event = Event()
-        self.scheduler = Scheduler()
-        self.keyboard = Keyboard(self)
         self.init_cells()
+        self.set_rule(110)
+        self.automate()
+
+        game.input_action.register_on_hold("quit", self.quit)
+        game.input_action.register_on_hold("next_rule", self.next_rule_hold)
+        game.input_action.register_on_release("next_rule", self.next_rule_release)
+        game.input_action.register_on_hold("prev_rule", self.prev_rule_hold)
+        game.input_action.register_on_release("prev_rule", self.prev_rule_release)
+        game.input_action.register_on_hold("inc_size", self.inc_size_hold)
+        game.input_action.register_on_release("inc_size", self.inc_size_release)
+        game.input_action.register_on_hold("dec_size", self.dec_size_hold)
+        game.input_action.register_on_release("dec_size", self.dec_size_release)
+
+        game.event.register_callback(pygame.QUIT, lambda: game.input_action.trigger("quit"))
+        game.event.register_callback(pygame.ACTIVEEVENT, self.on_gain_focus)
+        game.event.register_callback(pygame.KEYDOWN, game.keyboard.on_key_down)
+        game.event.register_callback(pygame.KEYUP, game.keyboard.on_key_up)
+        game.event.register_callback(pygame.JOYDEVICEADDED, game.joypad.on_joydevice_added)
+        game.event.register_callback(pygame.JOYDEVICEREMOVED, game.joypad.on_joydevice_removed)
+        game.event.register_callback(pygame.JOYBUTTONDOWN, game.joypad.on_joy_button_down)
+        game.event.register_callback(pygame.JOYBUTTONUP, game.joypad.on_joy_button_up)
+        game.event.register_callback(pygame.JOYAXISMOTION, game.joypad.on_joy_axis_motion)
+
+        game.scheduler.register_on("update", self.update)
+        game.scheduler.register_on("draw", self.draw)
+
 
     def init_cells(self):
         """ Run once every time the game changes settings
@@ -113,16 +120,16 @@ class Game:
     def draw(self):
         if self.trigger_full_redraw:
             self.trigger_full_redraw = False
-            self.screen.fill(Color.BLACK)
+            game.screen.fill(Color.BLACK)
             for cell in self.cells:
                 if cell.active:
-                    pygame.draw.rect(self.screen, Color.WHITE, cell.rect)
+                    pygame.draw.rect(game.screen, Color.WHITE, cell.rect)
 
-        pygame.draw.rect(self.screen, Color.BLACK, pygame.Rect((0, 0), (140, 20*4)))
-        self.screen.blit(self.font.render(f"res: {self.screen.get_size()}", True, Color.WHITE), (0, 0))
-        self.screen.blit(self.font.render(f"side: {self.CELLS_HEIGHT}", True, Color.WHITE), (0, 20))
-        self.screen.blit(self.font.render(f"rule: {self.get_rule()}", True, Color.WHITE), (0, 40))
-        self.screen.blit(self.font.render(f"fps: {self.clock.get_fps():.2f}", True, Color.WHITE), (0, 60))
+        pygame.draw.rect(game.screen, Color.BLACK, pygame.Rect((0, 0), (140, 20*4)))
+        game.screen.blit(self.font.render(f"res: {game.screen.get_size()}", True, Color.WHITE), (0, 0))
+        game.screen.blit(self.font.render(f"side: {self.CELLS_HEIGHT}", True, Color.WHITE), (0, 20))
+        game.screen.blit(self.font.render(f"rule: {self.get_rule()}", True, Color.WHITE), (0, 40))
+        game.screen.blit(self.font.render(f"fps: {game.clock.get_fps():.2f}", True, Color.WHITE), (0, 60))
 
     def update(self):
         if self.up_pressed:
@@ -141,7 +148,7 @@ class Game:
             self.set_rule((self.get_rule() - 1) % 255)
 
     def quit(self):
-        self.running = False
+        game.running = False
 
     def on_gain_focus(self, event):
         if event.state == "SDL_APPACTIVE" and event.gain == 1:
