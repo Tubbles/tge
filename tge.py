@@ -25,7 +25,8 @@ class GameEngine:
         # init some pygame stuff
         game.clock = pygame.time.Clock()
         game.screen_flags = pygame.FULLSCREEN | pygame.NOFRAME
-        game.screen = pygame.display.set_mode((0, 0), game.screen_flags, vsync=1)
+        game.size = list(reversed(sorted(pygame.display.list_modes())))[0]
+        game.screen = pygame.display.set_mode(game.size, game.screen_flags, vsync=1)
 
         # init some default systems
         game.joypad = Joypad()
